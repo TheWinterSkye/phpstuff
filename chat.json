@@ -1,0 +1,134 @@
+{
+    "messages": [
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: - \u25cb + + (Total: 1)",
+            "time": 1746747494
+        },
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: \u25cb \u25cb - - (Total: -2)",
+            "time": 1746747497
+        },
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: \u25cb \u25cb + + (Total: 2)",
+            "time": 1746747499
+        },
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: + + + - (Total: 2)",
+            "time": 1746747500
+        },
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: \u25cb \u25cb \u25cb + (Total: 1)",
+            "time": 1746747503
+        },
+        {
+            "user": "Winter",
+            "text": "Winter rolled 4dF: + - \u25cb - (Total: -1)",
+            "time": 1746747505
+        },
+        {
+            "user": "Winter",
+            "text": "test",
+            "time": 1746747509
+        },
+        {
+            "user": "Winter",
+            "text": "test",
+            "time": 1746750014
+        },
+        {
+            "user": "Winter",
+            "text": "rolls 4dF: [0] [+] [-] [+] = 1",
+            "time": 1746750050
+        },
+        {
+            "user": "Winter",
+            "text": "rolls 4dF: [0] [-] [0] [-] = -2",
+            "time": 1746750051
+        },
+        {
+            "user": "Winter",
+            "text": "rolls 4dF: [-] [+] [+] [+] = 2",
+            "time": 1746751671
+        },
+        {
+            "user": "test",
+            "text": "rolls 4dF: [0] [0] [+] [-] = 0",
+            "time": 1746751851
+        },
+        {
+            "user": "test",
+            "text": "rolls 4dF: [+] [0] [0] [+] = 2 + 1 = 3",
+            "time": 1746751867
+        },
+        {
+            "user": "Winter",
+            "text": "rolls 4dF: [+] [0] [+] [0] = 2",
+            "time": 1746837110
+        },
+        {
+            "user": "Winter",
+            "text": "Test",
+            "time": 1746837173
+        },
+        {
+            "user": "Jeffrey Thomas",
+            "text": "penus",
+            "time": 1746837180
+        },
+        {
+            "user": "Jeffrey Thomas",
+            "text": "rolls 4dF: [-] [0] [+] [-] = -1 + 4 = 3",
+            "time": 1746837359
+        },
+        {
+            "user": "Jeffrey Thomas",
+            "text": "rolls 4dF: [+] [0] [-] [-] = -1",
+            "time": 1746837657
+        },
+        {
+            "user": "Winter",
+            "text": "hello",
+            "time": 1746841794
+        }
+    ],
+    "0": {
+        "time": "23:52:48",
+        "user": "Winter",
+        "text": "test"
+    },
+    "1": {
+        "time": "23:52:50",
+        "user": "Winter",
+        "text": "rolled 4dF: \u2013 \u2013 \u2013 + (Total -2)"
+    },
+    "2": {
+        "time": "23:54:03",
+        "user": "player1",
+        "text": "asdf"
+    },
+    "3": {
+        "time": "00:02:36",
+        "user": "Winter",
+        "text": "asd"
+    },
+    "4": {
+        "time": "00:03:10",
+        "user": "test",
+        "text": "sdf"
+    },
+    "5": {
+        "time": "00:05:32",
+        "user": "test",
+        "text": "asdasd"
+    },
+    "6": {
+        "time": "00:08:59",
+        "user": "Winter",
+        "text": "asd"
+    }
+}

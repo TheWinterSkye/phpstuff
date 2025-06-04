@@ -1,0 +1,442 @@
+/* style.css */
+:root {
+    --bg-color: #1e1e2e; /* Dark background */
+    --surface-color: #27293d; /* Slightly lighter surfaces */
+    --panel-bg: #30344f; /* Panels, modals */
+    --primary-accent: #7aa2f7; /* A bright blue for accents */
+    --secondary-accent: #c0caf5; /* Lighter text, secondary elements */
+    --text-color: #a9b1d6; /* Main text color */
+    --text-darker: #5c5f77; /* Subdued text */
+    --border-color: #414868; /* Borders */
+    --danger-color: #f7768e; /* For delete buttons etc. */
+    --success-color: #9ece6a; /* For success states */
+    --input-bg: #1a1b26; /* Darker input background */
+
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+
+    --font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+    --font-size-base: 16px;
+    --font-size-sm: 14px;
+    --font-size-lg: 18px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: var(--font-size-base);
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll, manage scrolling in panels */
+}
+
+h3, h4 {
+    color: var(--secondary-accent);
+    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="file"],
+textarea,
+select {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 8px;
+    width: calc(100% - 24px); /* Account for padding */
+    font-family: var(--font-family);
+}
+
+input[type="file"] {
+    padding: 5px;
+}
+
+textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+button {
+    background-color: var(--primary-accent);
+    color: var(--bg-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+    margin: 4px;
+}
+
+button:hover {
+    background-color: var(--secondary-accent);
+    color: var(--bg-color);
+}
+
+button.danger {
+    background-color: var(--danger-color);
+}
+button.danger:hover {
+    background-color: #ff9e9e;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+ul li {
+    background-color: var(--surface-color);
+    padding: 8px;
+    margin-bottom: 6px;
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+ul li button {
+    padding: 4px 8px;
+    font-size: var(--font-size-sm);
+    margin-left: 5px;
+}
+
+
+#loginDiv {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: var(--surface-color);
+    padding: 20px;
+}
+#loginDiv h2 {
+    color: var(--secondary-accent);
+}
+#loginDiv form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--panel-bg);
+    padding: 25px;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+#loginDiv input[type="text"] {
+    width: 250px;
+}
+
+#container {
+    display: grid;
+    grid-template-areas:
+      "left center right"
+      "bottom bottom bottom";
+    grid-template-columns: 280px 1fr 280px; /* Fixed side panels, flexible center */
+    grid-template-rows: 1fr auto; /* Main content fills space, chat has auto height */
+    height: 100vh;
+    gap: 10px;
+    padding: 10px;
+}
+
+.panel {
+    background-color: var(--panel-bg);
+    padding: 15px;
+    border-radius: var(--border-radius-md);
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+#leftPanel { grid-area: left; }
+#centerPanel { grid-area: center; text-align: center; display: flex; flex-direction: column;}
+#rightPanel { grid-area: right; }
+#bottomPanel {
+    grid-area: bottom;
+    background-color: var(--panel-bg);
+    padding: 10px;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    max-height: 250px; /* Max height for chat area */
+}
+
+.playerEntry {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.playerImg {
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    border-radius: 50%; /* Rounded images */
+    object-fit: cover;
+    background-color: var(--text-darker); /* Placeholder bg */
+}
+.playerInfoContainer {
+    flex-grow: 1;
+}
+.playerName {
+    font-weight: bold;
+    color: var(--primary-accent);
+}
+.playerStats {
+    font-size: var(--font-size-sm);
+    color: var(--text-darker);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* NEW: Remove Player Button Style */
+.playerEntry .removePlayerBtn {
+    background-color: var(--danger-color);
+    color: var(--bg-color);
+    padding: 3px 7px;
+    font-size: var(--font-size-sm);
+    margin-left: auto; /* Pushes it to the right */
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    border: none;
+}
+.playerEntry .removePlayerBtn:hover {
+    background-color: #ff9e9e;
+}
+
+
+#sceneImageContainer {
+    margin-top: 10px;
+    flex-grow: 1; /* Allows image to take available space */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--input-bg); /* Dark background for image area */
+    border-radius: var(--border-radius-sm);
+    overflow: hidden; /* Ensure image fits */
+    min-height: 200px; /* Minimum height */
+}
+#sceneImage {
+    max-width: 100%;
+    max-height: 100%; /* Fit within container */
+    object-fit: contain; /* Ensure entire image is visible */
+    display: block; /* Remove extra space below image */
+}
+#centerPanel input[type="file"] {
+    width: auto; /* Don't make file input full width */
+    margin-bottom: 10px;
+}
+
+#chatBox {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Fill #bottomPanel */
+}
+#chatMessages {
+    flex: 1; /* Takes available space */
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    overflow-y: scroll;
+    margin-bottom: 10px;
+    border-radius: var(--border-radius-sm);
+    min-height: 100px; /* Ensure it's usable even if panel height is small */
+}
+.chatMsg {
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border-radius: var(--border-radius-sm);
+    line-height: 1.5;
+}
+.chatMsg:nth-child(odd) {
+    background-color: var(--surface-color);
+}
+.chatMsg .timestamp {
+    font-size: 0.8em;
+    color: var(--text-darker);
+    margin-right: 5px;
+}
+.chatMsg .user {
+    font-weight: bold;
+    color: var(--primary-accent);
+}
+#chatInputContainer {
+    display: flex;
+    gap: 10px;
+}
+#chatInput {
+    flex-grow: 1;
+    margin-bottom: 0; /* Remove default margin */
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Modal itself doesn't scroll */
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    display: flex; /* Use flex to center content */
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--panel-bg);
+    padding: 25px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 800px; /* Max width for char sheet */
+    max-height: 90vh; /* Max height */
+    display: flex;
+    flex-direction: column;
+    position: relative; /* For close button positioning */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+.modal-header h3 {
+    margin: 0;
+    border-bottom: none;
+}
+
+.close {
+    color: var(--secondary-accent);
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+.close:hover,
+.close:focus {
+    color: var(--primary-accent);
+    text-decoration: none;
+}
+
+#charForm {
+    overflow-y: auto; /* Scrollable form content */
+    padding-right: 15px; /* Space for scrollbar */
+    flex-grow: 1;
+}
+
+.char-sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.char-section {
+    background-color: var(--surface-color);
+    padding: 15px;
+    border-radius: var(--border-radius-md);
+}
+.char-section h4 {
+    margin-top: 0;
+    color: var(--primary-accent);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--secondary-accent);
+}
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea {
+    width: 100%;
+}
+
+.skill-entry, .stunt-entry, .aspect-entry {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+.skill-entry input[type="text"] { /* Skill name */
+    flex-grow: 1;
+}
+.skill-entry input[type="number"] { /* Skill value */
+    width: 80px !important; /* Specific width for skill value */
+    flex-grow: 0;
+}
+.stunt-entry textarea {
+    flex-grow: 1;
+    min-height: 40px;
+}
+.aspect-entry input[type="text"] {
+    flex-grow: 1;
+}
+
+.char-buttons {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    text-align: right;
+}
+.char-buttons button {
+    margin-left: 10px;
+}
+
+/* Helper for GM only elements */
+.gm-only { display: none; }
+body.is-gm .gm-only { display: block; } /* Or flex, inline-block etc. as needed */
+body.is-gm .gm-only-inline { display: inline; }
+body.is-gm .gm-only-flex { display: flex; }
+
+/* Scrollbar styling for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--input-bg);
+    border-radius: var(--border-radius-sm);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--text-darker);
+    border-radius: var(--border-radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-accent);
+}
+
+/* Hide default file input for char load, style the button */
+#loadCharInput {
+    display: none;
+}

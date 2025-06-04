@@ -1,0 +1,110 @@
+{
+    "image": "uploads/char_test_1746751735.png",
+    "fatePoints": 3,
+    "refresh": 3,
+    "aspects": [
+        {
+            "type": "High Concept",
+            "value": ""
+        },
+        {
+            "type": "Trouble",
+            "value": ""
+        },
+        {
+            "type": "Other Aspect 1",
+            "value": ""
+        },
+        {
+            "type": "Other Aspect 2",
+            "value": ""
+        },
+        {
+            "type": "Other Aspect 3",
+            "value": ""
+        }
+    ],
+    "skills": [
+        {
+            "name": "Athletics",
+            "value": 0
+        },
+        {
+            "name": "Burglary",
+            "value": 0
+        },
+        {
+            "name": "Contacts",
+            "value": 0
+        },
+        {
+            "name": "Deceive",
+            "value": 0
+        },
+        {
+            "name": "Drive",
+            "value": 0
+        },
+        {
+            "name": "Empathy",
+            "value": 0
+        },
+        {
+            "name": "Fight",
+            "value": 0
+        },
+        {
+            "name": "Investigate",
+            "value": 0
+        },
+        {
+            "name": "Lore",
+            "value": 0
+        },
+        {
+            "name": "Notice",
+            "value": 0
+        },
+        {
+            "name": "Physique",
+            "value": 0
+        },
+        {
+            "name": "Provoke",
+            "value": 0
+        },
+        {
+            "name": "Rapport",
+            "value": 0
+        },
+        {
+            "name": "Resources",
+            "value": 0
+        },
+        {
+            "name": "Shoot",
+            "value": 0
+        },
+        {
+            "name": "Stealth",
+            "value": 0
+        },
+        {
+            "name": "Will",
+            "value": 0
+        }
+    ],
+    "stunts": [],
+    "stressPhysical": 0,
+    "physicalStressBoxes": 2,
+    "stressMental": 0,
+    "mentalStressBoxes": 2,
+    "consequences": {
+        "mild1": "",
+        "mild2": "",
+        "moderate": "",
+        "severe": ""
+    },
+    "conditions": "",
+    "name": "test"
+}

@@ -1,0 +1,41 @@
+{
+    "image": "uploads/char_Winter_1746750104.png",
+    "fatePoints": 5,
+    "refresh": 3,
+    "aspects": [
+        {
+            "type": "Aspect 1",
+            "value": "undefined"
+        },
+        {
+            "type": "Aspect 2",
+            "value": "undefined"
+        },
+        {
+            "type": "Aspect 3",
+            "value": "undefined"
+        },
+        {
+            "type": "Aspect 4",
+            "value": "undefined"
+        },
+        {
+            "type": "Aspect 5",
+            "value": "undefined"
+        }
+    ],
+    "skills": [],
+    "stunts": [],
+    "stressPhysical": 0,
+    "physicalStressBoxes": null,
+    "stressMental": 0,
+    "mentalStressBoxes": null,
+    "consequences": {
+        "mild1": "asd",
+        "mild2": "",
+        "moderate": "",
+        "severe": ""
+    },
+    "conditions": "",
+    "name": "Winter"
+}
