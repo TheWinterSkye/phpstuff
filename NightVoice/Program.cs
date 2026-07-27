@@ -1,10 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using NAudio.Wave;
-using NAudio.Dsp;
 
 namespace NightVoice;
 
@@ -24,22 +24,28 @@ public sealed class MainForm : Form
     private readonly ComboBox virtualOutBox = new();
     private readonly ComboBox monitorOutBox = new();
     private readonly ComboBox presetBox = new();
+    private readonly ComboBox qualityBox = new();
     private readonly CheckBox monitorToggle = new();
+    private readonly CheckBox preserveToggle = new();
     private readonly Button startButton = new();
     private readonly Button stopButton = new();
     private readonly Button refreshButton = new();
+
     private readonly TrackBar mixSlider = Slider(0, 100, 100);
     private readonly TrackBar pitchSlider = Slider(-12, 12, 0);
+    private readonly TrackBar formantSlider = Slider(-8, 8, 0);
     private readonly TrackBar driveSlider = Slider(0, 100, 0);
     private readonly TrackBar echoSlider = Slider(0, 100, 0);
     private readonly TrackBar chorusSlider = Slider(0, 100, 0);
-    private readonly TrackBar reverbSlider = Slider(0, 100, 0);
-    private readonly TrackBar gateSlider = Slider(-60, -10, -48);
+    private readonly TrackBar reverbSlider = Slider(0, 100, 2);
+    private readonly TrackBar gateSlider = Slider(-65, -10, -56);
     private readonly TrackBar bassSlider = Slider(-12, 12, 0);
-    private readonly TrackBar trebleSlider = Slider(-12, 12, 0);
+    private readonly TrackBar trebleSlider = Slider(-12, 12, 1);
+
     private readonly ProgressBar inputMeter = new();
     private readonly ProgressBar outputMeter = new();
     private readonly Label statusLabel = new();
+    private readonly Label latencyLabel = new();
     private readonly Dictionary<TrackBar, Label> valueLabels = new();
 
     private WaveInEvent? capture;
@@ -49,6 +55,8 @@ public sealed class MainForm : Form
     private BufferedWaveProvider? monitorBuffer;
     private VoiceProcessor? processor;
     private bool running;
+    private volatile bool monitorEnabled;
+    private long lastMeterUpdate;
 
     private static readonly Color Back = Color.FromArgb(14, 15, 20);
     private static readonly Color Panel = Color.FromArgb(24, 26, 34);
@@ -59,9 +67,9 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "NightVoice — Live Voice Mod";
-        ClientSize = new Size(1080, 720);
-        MinimumSize = new Size(940, 650);
+        Text = "NightVoice 2 — Natural Pitch Engine";
+        ClientSize = new Size(1120, 780);
+        MinimumSize = new Size(980, 700);
         BackColor = Back;
         ForeColor = TextMain;
         Font = new Font("Segoe UI", 10f);
@@ -95,34 +103,31 @@ public sealed class MainForm : Form
             RowCount = 3,
             BackColor = Back
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330));
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 345));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
         Controls.Add(root);
 
         var header = new Panel { Dock = DockStyle.Fill, BackColor = Back };
         root.Controls.Add(header, 0, 0);
         root.SetColumnSpan(header, 2);
-
-        var title = new Label
+        header.Controls.Add(new Label
         {
-            Text = "NIGHTVOICE",
+            Text = "NIGHTVOICE 2",
             Font = new Font("Segoe UI Semibold", 24f, FontStyle.Bold),
             ForeColor = TextMain,
             AutoSize = true,
             Location = new Point(4, 3)
-        };
-        var subtitle = new Label
+        });
+        header.Controls.Add(new Label
         {
-            Text = "Real-time voice effects for Windows",
+            Text = "Higher-quality pitch shifting with independent formant control",
             ForeColor = TextMuted,
             AutoSize = true,
             Location = new Point(8, 52)
-        };
-        header.Controls.Add(title);
-        header.Controls.Add(subtitle);
+        });
 
         var left = Card();
         left.Padding = new Padding(18);
@@ -145,17 +150,41 @@ public sealed class MainForm : Form
         monitorToggle.Text = "Monitor my processed voice";
         monitorToggle.ForeColor = TextMain;
         monitorToggle.AutoSize = true;
-        monitorToggle.Margin = new Padding(3, 12, 3, 10);
-        monitorToggle.CheckedChanged += (_, _) => UpdateMonitorState();
+        monitorToggle.Margin = new Padding(3, 12, 3, 8);
+        monitorToggle.CheckedChanged += (_, _) =>
+        {
+            monitorEnabled = monitorToggle.Checked;
+            UpdateMonitorState();
+        };
         leftFlow.Controls.Add(monitorToggle);
 
         refreshButton.Text = "Refresh devices";
+        refreshButton.Width = 285;
         StyleSecondaryButton(refreshButton);
         refreshButton.Click += (_, _) => LoadDevices();
         leftFlow.Controls.Add(refreshButton);
 
+        AddSectionTitle(leftFlow, "VOICE ENGINE");
+        AddCombo(leftFlow, "Pitch quality", qualityBox);
+        qualityBox.Items.AddRange(new object[]
+        {
+            "Low latency",
+            "Balanced — recommended",
+            "Studio — smoothest"
+        });
+        qualityBox.SelectedIndex = 1;
+        qualityBox.SelectedIndexChanged += (_, _) => UpdateProcessorSettings();
+
+        preserveToggle.Text = "Preserve natural tone while shifting";
+        preserveToggle.ForeColor = TextMain;
+        preserveToggle.Checked = true;
+        preserveToggle.AutoSize = true;
+        preserveToggle.Margin = new Padding(3, 10, 3, 7);
+        preserveToggle.CheckedChanged += (_, _) => UpdateProcessorSettings();
+        leftFlow.Controls.Add(preserveToggle);
+
         AddSectionTitle(leftFlow, "VOICE PRESET");
-        presetBox.Width = 270;
+        presetBox.Width = 285;
         presetBox.DropDownStyle = ComboBoxStyle.DropDownList;
         StyleCombo(presetBox);
         presetBox.SelectedIndexChanged += (_, _) =>
@@ -165,15 +194,15 @@ public sealed class MainForm : Form
         leftFlow.Controls.Add(presetBox);
 
         startButton.Text = "START VOICE MOD";
-        startButton.Width = 270;
+        startButton.Width = 285;
         startButton.Height = 46;
-        startButton.Margin = new Padding(3, 20, 3, 6);
+        startButton.Margin = new Padding(3, 18, 3, 6);
         StylePrimaryButton(startButton);
         startButton.Click += (_, _) => StartAudio();
         leftFlow.Controls.Add(startButton);
 
         stopButton.Text = "STOP";
-        stopButton.Width = 270;
+        stopButton.Width = 285;
         stopButton.Height = 38;
         stopButton.Enabled = false;
         StyleSecondaryButton(stopButton);
@@ -181,39 +210,52 @@ public sealed class MainForm : Form
         leftFlow.Controls.Add(stopButton);
 
         var right = Card();
-        right.Padding = new Padding(20);
+        right.Padding = new Padding(16);
         root.Controls.Add(right, 1, 1);
 
         var effects = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 5,
+            RowCount = 6,
             BackColor = Panel,
             Padding = new Padding(4)
         };
         effects.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         effects.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        for (int i = 0; i < 5; i++) effects.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
+        for (int i = 0; i < 6; i++) effects.RowStyles.Add(new RowStyle(SizeType.Percent, 16.6667f));
         right.Controls.Add(effects);
 
         AddKnobPanel(effects, 0, 0, "Wet / Dry Mix", mixSlider, "%");
         AddKnobPanel(effects, 1, 0, "Pitch", pitchSlider, " st");
-        AddKnobPanel(effects, 0, 1, "Drive", driveSlider, "%");
-        AddKnobPanel(effects, 1, 1, "Noise Gate", gateSlider, " dB");
-        AddKnobPanel(effects, 0, 2, "Echo", echoSlider, "%");
-        AddKnobPanel(effects, 1, 2, "Chorus", chorusSlider, "%");
-        AddKnobPanel(effects, 0, 3, "Reverb", reverbSlider, "%");
-        AddKnobPanel(effects, 1, 3, "Bass", bassSlider, " dB");
-        AddKnobPanel(effects, 0, 4, "Treble", trebleSlider, " dB");
+        AddKnobPanel(effects, 0, 1, "Formant", formantSlider, " st");
+        AddKnobPanel(effects, 1, 1, "Drive", driveSlider, "%");
+        AddKnobPanel(effects, 0, 2, "Noise Gate", gateSlider, " dB");
+        AddKnobPanel(effects, 1, 2, "Bass", bassSlider, " dB");
+        AddKnobPanel(effects, 0, 3, "Treble", trebleSlider, " dB");
+        AddKnobPanel(effects, 1, 3, "Chorus", chorusSlider, "%");
+        AddKnobPanel(effects, 0, 4, "Echo", echoSlider, "%");
+        AddKnobPanel(effects, 1, 4, "Reverb", reverbSlider, "%");
 
-        var meterPanel = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Padding = new Padding(16) };
-        effects.Controls.Add(meterPanel, 1, 4);
-        var meterLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Panel2 };
-        meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        var tips = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Margin = new Padding(6), Padding = new Padding(14) };
+        tips.Controls.Add(new Label
+        {
+            Text = "NATURAL VOICE TIP\nUse small pitch changes. Move formant separately to change apparent vocal-tract size without forcing pitch too far.",
+            Dock = DockStyle.Fill,
+            ForeColor = TextMuted,
+            Font = new Font("Segoe UI", 9f),
+            TextAlign = ContentAlignment.MiddleLeft
+        });
+        effects.Controls.Add(tips, 0, 5);
+
+        var meterPanel = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Margin = new Padding(6), Padding = new Padding(14) };
+        effects.Controls.Add(meterPanel, 1, 5);
+        var meterLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Panel2 };
         meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
-        meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 16));
         meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+        meterLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 16));
+        meterLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         meterPanel.Controls.Add(meterLayout);
         meterLayout.Controls.Add(MutedLabel("INPUT LEVEL"), 0, 0);
         inputMeter.Dock = DockStyle.Fill;
@@ -221,6 +263,11 @@ public sealed class MainForm : Form
         meterLayout.Controls.Add(MutedLabel("OUTPUT LEVEL"), 0, 2);
         outputMeter.Dock = DockStyle.Fill;
         meterLayout.Controls.Add(outputMeter, 0, 3);
+        latencyLabel.Text = "Engine latency: —";
+        latencyLabel.ForeColor = TextMuted;
+        latencyLabel.Dock = DockStyle.Fill;
+        latencyLabel.TextAlign = ContentAlignment.BottomLeft;
+        meterLayout.Controls.Add(latencyLabel, 0, 4);
 
         var footer = new Panel { Dock = DockStyle.Fill, BackColor = Back };
         root.Controls.Add(footer, 0, 2);
@@ -228,7 +275,7 @@ public sealed class MainForm : Form
         statusLabel.Text = "Ready — choose your microphone and virtual cable.";
         statusLabel.ForeColor = TextMuted;
         statusLabel.AutoSize = true;
-        statusLabel.Location = new Point(5, 15);
+        statusLabel.Location = new Point(5, 17);
         footer.Controls.Add(statusLabel);
     }
 
@@ -250,7 +297,7 @@ public sealed class MainForm : Form
             Text = text,
             ForeColor = Accent,
             Font = new Font("Segoe UI Semibold", 9f, FontStyle.Bold),
-            Width = 275,
+            Width = 290,
             Height = 30,
             Margin = new Padding(3, 8, 3, 2),
             TextAlign = ContentAlignment.BottomLeft
@@ -259,8 +306,8 @@ public sealed class MainForm : Form
 
     private static void AddCombo(Control parent, string label, ComboBox box)
     {
-        parent.Controls.Add(new Label { Text = label, ForeColor = TextMuted, Width = 275, Height = 24, Margin = new Padding(3, 8, 3, 0) });
-        box.Width = 270;
+        parent.Controls.Add(new Label { Text = label, ForeColor = TextMuted, Width = 290, Height = 24, Margin = new Padding(3, 8, 3, 0) });
+        box.Width = 285;
         box.DropDownStyle = ComboBoxStyle.DropDownList;
         StyleCombo(box);
         parent.Controls.Add(box);
@@ -296,11 +343,11 @@ public sealed class MainForm : Form
 
     private void AddKnobPanel(TableLayoutPanel parent, int col, int row, string name, TrackBar slider, string suffix)
     {
-        var box = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Margin = new Padding(6), Padding = new Padding(14) };
+        var box = new Panel { Dock = DockStyle.Fill, BackColor = Panel2, Margin = new Padding(6), Padding = new Padding(12) };
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Panel2 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
         box.Controls.Add(layout);
         layout.Controls.Add(new Label { Text = name, Dock = DockStyle.Fill, ForeColor = TextMain, Font = new Font("Segoe UI Semibold", 10f) }, 0, 0);
         layout.Controls.Add(slider, 0, 1);
@@ -318,8 +365,8 @@ public sealed class MainForm : Form
     private void LoadDevices()
     {
         string? inputName = inputBox.SelectedItem?.ToString();
-        string? vName = virtualOutBox.SelectedItem?.ToString();
-        string? mName = monitorOutBox.SelectedItem?.ToString();
+        string? virtualName = virtualOutBox.SelectedItem?.ToString();
+        string? monitorName = monitorOutBox.SelectedItem?.ToString();
 
         inputBox.Items.Clear();
         for (int i = 0; i < WaveIn.DeviceCount; i++) inputBox.Items.Add(WaveIn.GetCapabilities(i).ProductName);
@@ -328,14 +375,14 @@ public sealed class MainForm : Form
         monitorOutBox.Items.Clear();
         for (int i = 0; i < WaveOut.DeviceCount; i++)
         {
-            string n = WaveOut.GetCapabilities(i).ProductName;
-            virtualOutBox.Items.Add(n);
-            monitorOutBox.Items.Add(n);
+            string name = WaveOut.GetCapabilities(i).ProductName;
+            virtualOutBox.Items.Add(name);
+            monitorOutBox.Items.Add(name);
         }
 
         RestoreSelection(inputBox, inputName, 0);
-        RestoreSelection(virtualOutBox, vName, FindCableIndex(virtualOutBox));
-        RestoreSelection(monitorOutBox, mName, 0);
+        RestoreSelection(virtualOutBox, virtualName, FindCableIndex(virtualOutBox));
+        RestoreSelection(monitorOutBox, monitorName, 0);
         statusLabel.Text = $"Found {inputBox.Items.Count} inputs and {virtualOutBox.Items.Count} outputs.";
     }
 
@@ -349,8 +396,8 @@ public sealed class MainForm : Form
     {
         for (int i = 0; i < box.Items.Count; i++)
         {
-            string n = box.Items[i]?.ToString()?.ToLowerInvariant() ?? "";
-            if (n.Contains("cable") || n.Contains("virtual")) return i;
+            string name = box.Items[i]?.ToString()?.ToLowerInvariant() ?? string.Empty;
+            if (name.Contains("cable") || name.Contains("virtual")) return i;
         }
         return 0;
     }
@@ -359,25 +406,28 @@ public sealed class MainForm : Form
     {
         presetBox.Items.AddRange(new object[]
         {
-            "Clean Studio", "Warm Broadcast", "Bright Pop", "Deep Voice", "Soft Feminine",
-            "Telephone", "Robot", "Android", "Demon", "Ghost", "Goblin", "Space Radio",
-            "Dream Chorus", "Dark Whisper"
+            "Clean Studio", "Warm Broadcast", "Bright Natural", "Natural Higher", "Natural Lower",
+            "Soft Feminine", "Deep Voice", "Telephone", "Robot", "Android", "Demon", "Ghost",
+            "Goblin", "Space Radio", "Dream Chorus", "Dark Whisper"
         });
         presetBox.SelectedIndex = 0;
     }
 
     private void ApplyPreset(string name)
     {
-        var p = VoicePreset.Get(name);
-        mixSlider.Value = p.Mix;
-        pitchSlider.Value = p.Pitch;
-        driveSlider.Value = p.Drive;
-        echoSlider.Value = p.Echo;
-        chorusSlider.Value = p.Chorus;
-        reverbSlider.Value = p.Reverb;
-        gateSlider.Value = p.Gate;
-        bassSlider.Value = p.Bass;
-        trebleSlider.Value = p.Treble;
+        VoicePreset preset = VoicePreset.Get(name);
+        mixSlider.Value = preset.Mix;
+        pitchSlider.Value = preset.Pitch;
+        formantSlider.Value = preset.Formant;
+        preserveToggle.Checked = preset.Preserve;
+        qualityBox.SelectedIndex = preset.Quality;
+        driveSlider.Value = preset.Drive;
+        echoSlider.Value = preset.Echo;
+        chorusSlider.Value = preset.Chorus;
+        reverbSlider.Value = preset.Reverb;
+        gateSlider.Value = preset.Gate;
+        bassSlider.Value = preset.Bass;
+        trebleSlider.Value = preset.Treble;
         UpdateProcessorSettings();
         statusLabel.Text = $"Preset loaded: {name}";
     }
@@ -394,15 +444,15 @@ public sealed class MainForm : Form
         try
         {
             var format = new WaveFormat(48000, 16, 1);
-            processor = new VoiceProcessor(48000);
+            processor = new VoiceProcessor(48000, Math.Max(0, qualityBox.SelectedIndex));
             UpdateProcessorSettings();
 
             virtualBuffer = new BufferedWaveProvider(format)
             {
-                BufferDuration = TimeSpan.FromMilliseconds(400),
+                BufferDuration = TimeSpan.FromMilliseconds(900),
                 DiscardOnBufferOverflow = true
             };
-            virtualOutput = new WaveOutEvent { DeviceNumber = virtualOutBox.SelectedIndex, DesiredLatency = 90, NumberOfBuffers = 3 };
+            virtualOutput = new WaveOutEvent { DeviceNumber = virtualOutBox.SelectedIndex, DesiredLatency = 75, NumberOfBuffers = 3 };
             virtualOutput.Init(virtualBuffer);
             virtualOutput.Play();
 
@@ -416,7 +466,7 @@ public sealed class MainForm : Form
             capture.DataAvailable += CaptureOnDataAvailable;
             capture.RecordingStopped += (_, e) =>
             {
-                if (e.Exception != null) BeginInvoke(() => statusLabel.Text = "Audio stopped: " + e.Exception.Message);
+                if (e.Exception != null) BeginInvoke((Action)(() => statusLabel.Text = "Audio stopped: " + e.Exception.Message));
             };
             capture.StartRecording();
 
@@ -424,8 +474,14 @@ public sealed class MainForm : Form
             startButton.Enabled = false;
             stopButton.Enabled = true;
             inputBox.Enabled = virtualOutBox.Enabled = false;
+            latencyLabel.Text = $"Engine latency: about {processor.LatencyMilliseconds} ms";
             statusLabel.Text = "LIVE — processed voice is being sent to the selected output.";
             UpdateMonitorState();
+        }
+        catch (DllNotFoundException)
+        {
+            StopAudio();
+            MessageBox.Show("NightPitch.dll is missing. Keep it in the same extracted folder as NightVoice.exe.", "Pitch engine missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
@@ -436,29 +492,51 @@ public sealed class MainForm : Form
 
     private void CaptureOnDataAvailable(object? sender, WaveInEventArgs e)
     {
-        if (processor == null || virtualBuffer == null) return;
-        byte[] processed = new byte[e.BytesRecorded];
-        Buffer.BlockCopy(e.Buffer, 0, processed, 0, e.BytesRecorded);
-        var samples = new short[e.BytesRecorded / 2];
-        Buffer.BlockCopy(processed, 0, samples, 0, e.BytesRecorded);
+        VoiceProcessor? currentProcessor = processor;
+        BufferedWaveProvider? currentVirtualBuffer = virtualBuffer;
+        if (currentProcessor == null || currentVirtualBuffer == null) return;
 
-        float inPeak = 0f;
-        for (int i = 0; i < samples.Length; i++) inPeak = Math.Max(inPeak, Math.Abs(samples[i] / 32768f));
-        float outPeak = processor.Process(samples);
-        Buffer.BlockCopy(samples, 0, processed, 0, e.BytesRecorded);
-
-        virtualBuffer.AddSamples(processed, 0, processed.Length);
-        if (monitorToggle.Checked && monitorBuffer != null) monitorBuffer.AddSamples(processed, 0, processed.Length);
-
-        BeginInvoke(() =>
+        int sampleCount = e.BytesRecorded / 2;
+        short[] samples = ArrayPool<short>.Shared.Rent(sampleCount);
+        byte[] processed = ArrayPool<byte>.Shared.Rent(e.BytesRecorded);
+        try
         {
-            inputMeter.Value = Math.Clamp((int)(inPeak * 100), 0, 100);
-            outputMeter.Value = Math.Clamp((int)(outPeak * 100), 0, 100);
-        });
+            Buffer.BlockCopy(e.Buffer, 0, samples, 0, e.BytesRecorded);
+            float inputPeak = 0f;
+            for (int i = 0; i < sampleCount; i++) inputPeak = Math.Max(inputPeak, Math.Abs(samples[i] / 32768f));
+
+            float outputPeak = currentProcessor.Process(samples, sampleCount);
+            Buffer.BlockCopy(samples, 0, processed, 0, e.BytesRecorded);
+            currentVirtualBuffer.AddSamples(processed, 0, e.BytesRecorded);
+
+            BufferedWaveProvider? currentMonitor = monitorBuffer;
+            if (monitorEnabled && currentMonitor != null) currentMonitor.AddSamples(processed, 0, e.BytesRecorded);
+
+            long now = Environment.TickCount64;
+            if (now - lastMeterUpdate >= 50)
+            {
+                lastMeterUpdate = now;
+                BeginInvoke((Action)(() =>
+                {
+                    inputMeter.Value = Math.Clamp((int)(inputPeak * 100), 0, 100);
+                    outputMeter.Value = Math.Clamp((int)(outputPeak * 100), 0, 100);
+                }));
+            }
+        }
+        catch (Exception ex)
+        {
+            BeginInvoke((Action)(() => statusLabel.Text = "Processing error: " + ex.Message));
+        }
+        finally
+        {
+            ArrayPool<short>.Shared.Return(samples);
+            ArrayPool<byte>.Shared.Return(processed);
+        }
     }
 
     private void UpdateMonitorState()
     {
+        monitorEnabled = monitorToggle.Checked;
         if (!running) return;
         try
         {
@@ -467,21 +545,24 @@ public sealed class MainForm : Form
             monitorOutput = null;
             monitorBuffer = null;
 
-            if (monitorToggle.Checked)
+            if (monitorEnabled)
             {
                 if (monitorOutBox.SelectedIndex < 0) return;
                 var format = new WaveFormat(48000, 16, 1);
                 monitorBuffer = new BufferedWaveProvider(format)
                 {
-                    BufferDuration = TimeSpan.FromMilliseconds(400),
+                    BufferDuration = TimeSpan.FromMilliseconds(900),
                     DiscardOnBufferOverflow = true
                 };
-                monitorOutput = new WaveOutEvent { DeviceNumber = monitorOutBox.SelectedIndex, DesiredLatency = 80, NumberOfBuffers = 3 };
+                monitorOutput = new WaveOutEvent { DeviceNumber = monitorOutBox.SelectedIndex, DesiredLatency = 70, NumberOfBuffers = 3 };
                 monitorOutput.Init(monitorBuffer);
                 monitorOutput.Play();
-                statusLabel.Text = "LIVE — voice monitoring is ON. Headphones are strongly recommended.";
+                statusLabel.Text = "LIVE — monitoring is ON. Use headphones to prevent feedback.";
             }
-            else statusLabel.Text = "LIVE — voice monitoring is OFF.";
+            else
+            {
+                statusLabel.Text = "LIVE — monitoring is OFF.";
+            }
         }
         catch (Exception ex)
         {
@@ -493,12 +574,14 @@ public sealed class MainForm : Form
     private void StopAudio()
     {
         running = false;
+        monitorEnabled = false;
         try { capture?.StopRecording(); } catch { }
         try { virtualOutput?.Stop(); } catch { }
         try { monitorOutput?.Stop(); } catch { }
         capture?.Dispose();
         virtualOutput?.Dispose();
         monitorOutput?.Dispose();
+        processor?.Dispose();
         capture = null;
         virtualOutput = null;
         monitorOutput = null;
@@ -510,209 +593,37 @@ public sealed class MainForm : Form
         stopButton.Enabled = false;
         inputBox.Enabled = virtualOutBox.Enabled = true;
         inputMeter.Value = outputMeter.Value = 0;
+        latencyLabel.Text = "Engine latency: —";
         statusLabel.Text = "Stopped.";
     }
 
     private void UpdateProcessorSettings()
     {
-        processor?.Configure(new VoiceSettings
+        VoiceProcessor? current = processor;
+        if (current == null) return;
+        try
         {
-            Mix = mixSlider.Value / 100f,
-            PitchSemitones = pitchSlider.Value,
-            Drive = driveSlider.Value / 100f,
-            Echo = echoSlider.Value / 100f,
-            Chorus = chorusSlider.Value / 100f,
-            Reverb = reverbSlider.Value / 100f,
-            GateDb = gateSlider.Value,
-            BassDb = bassSlider.Value,
-            TrebleDb = trebleSlider.Value,
-            Mode = presetBox.SelectedItem?.ToString() ?? "Clean Studio"
-        });
-    }
-}
-
-public sealed class VoiceSettings
-{
-    public float Mix { get; set; } = 1;
-    public int PitchSemitones { get; set; }
-    public float Drive { get; set; }
-    public float Echo { get; set; }
-    public float Chorus { get; set; }
-    public float Reverb { get; set; }
-    public float GateDb { get; set; } = -48;
-    public float BassDb { get; set; }
-    public float TrebleDb { get; set; }
-    public string Mode { get; set; } = "Clean Studio";
-}
-
-public sealed record VoicePreset(int Mix, int Pitch, int Drive, int Echo, int Chorus, int Reverb, int Gate, int Bass, int Treble)
-{
-    public static VoicePreset Get(string name) => name switch
-    {
-        "Warm Broadcast" => new(100, 0, 12, 0, 0, 4, -46, 5, -2),
-        "Bright Pop" => new(100, 1, 4, 0, 8, 8, -50, -2, 6),
-        "Deep Voice" => new(100, -4, 10, 4, 3, 10, -46, 7, -4),
-        "Soft Feminine" => new(100, 3, 3, 0, 8, 9, -50, -3, 5),
-        "Telephone" => new(100, 0, 18, 2, 0, 0, -42, -12, 10),
-        "Robot" => new(100, 0, 28, 5, 0, 0, -45, -4, 5),
-        "Android" => new(100, -1, 18, 3, 18, 3, -46, 0, 6),
-        "Demon" => new(100, -7, 38, 18, 9, 30, -43, 8, -7),
-        "Ghost" => new(100, 4, 5, 35, 30, 50, -52, -5, 4),
-        "Goblin" => new(100, 7, 24, 7, 7, 7, -45, -8, 8),
-        "Space Radio" => new(100, -1, 22, 20, 12, 12, -44, -6, 9),
-        "Dream Chorus" => new(85, 2, 2, 16, 62, 38, -52, 0, 4),
-        "Dark Whisper" => new(100, -3, 9, 20, 24, 42, -56, 4, -6),
-        _ => new(100, 0, 0, 0, 0, 2, -50, 0, 0)
-    };
-}
-
-public sealed class VoiceProcessor
-{
-    private readonly int sampleRate;
-    private VoiceSettings settings = new();
-    private BiQuadFilter lowShelf;
-    private BiQuadFilter highShelf;
-    private BiQuadFilter telephoneHighPass;
-    private BiQuadFilter telephoneLowPass;
-    private readonly float[] echoBuffer;
-    private readonly float[] reverbA;
-    private readonly float[] reverbB;
-    private readonly float[] chorusBuffer;
-    private readonly float[] pitchBuffer;
-    private int echoPos, revAPos, revBPos, chorusPos, pitchWrite;
-    private double lfoPhase, robotPhase, pitchRead;
-    private readonly Random random = new();
-
-    public VoiceProcessor(int sampleRate)
-    {
-        this.sampleRate = sampleRate;
-        lowShelf = BiQuadFilter.LowShelf(sampleRate, 180, 0.8f, 0);
-        highShelf = BiQuadFilter.HighShelf(sampleRate, 3500, 0.8f, 0);
-        telephoneHighPass = BiQuadFilter.HighPassFilter(sampleRate, 320, 0.8f);
-        telephoneLowPass = BiQuadFilter.LowPassFilter(sampleRate, 3200, 0.8f);
-        echoBuffer = new float[sampleRate * 2];
-        reverbA = new float[(int)(sampleRate * 0.083)];
-        reverbB = new float[(int)(sampleRate * 0.127)];
-        chorusBuffer = new float[(int)(sampleRate * 0.08)];
-        pitchBuffer = new float[(int)(sampleRate * 0.12)];
-        pitchRead = pitchBuffer.Length / 2.0;
-    }
-
-    public void Configure(VoiceSettings newSettings)
-    {
-        settings = newSettings;
-        lowShelf = BiQuadFilter.LowShelf(sampleRate, 180, 0.8f, settings.BassDb);
-        highShelf = BiQuadFilter.HighShelf(sampleRate, 3500, 0.8f, settings.TrebleDb);
-    }
-
-    public float Process(short[] samples)
-    {
-        float peak = 0f;
-        float gateLinear = MathF.Pow(10f, settings.GateDb / 20f);
-        float pitchRatio = MathF.Pow(2f, settings.PitchSemitones / 12f);
-
-        for (int i = 0; i < samples.Length; i++)
-        {
-            float dry = samples[i] / 32768f;
-            float x = Math.Abs(dry) < gateLinear ? 0f : dry;
-            x = lowShelf.Transform(x);
-            x = highShelf.Transform(x);
-
-            if (settings.PitchSemitones != 0) x = PitchShift(x, pitchRatio);
-
-            string mode = settings.Mode;
-            if (mode == "Telephone" || mode == "Space Radio")
+            current.Configure(new VoiceSettings
             {
-                x = telephoneHighPass.Transform(x);
-                x = telephoneLowPass.Transform(x);
-            }
-            if (mode == "Robot")
-            {
-                robotPhase += 2 * Math.PI * 72 / sampleRate;
-                if (robotPhase > 2 * Math.PI) robotPhase -= 2 * Math.PI;
-                x *= (float)Math.Sin(robotPhase);
-            }
-            else if (mode == "Android")
-            {
-                robotPhase += 2 * Math.PI * 34 / sampleRate;
-                if (robotPhase > 2 * Math.PI) robotPhase -= 2 * Math.PI;
-                x = x * 0.78f + x * (float)Math.Sin(robotPhase) * 0.32f;
-            }
-            else if (mode == "Dark Whisper")
-            {
-                float noise = ((float)random.NextDouble() * 2f - 1f) * Math.Min(0.12f, Math.Abs(x) * 1.7f);
-                x = x * 0.52f + noise;
-            }
-
-            if (settings.Drive > 0)
-            {
-                float gain = 1f + settings.Drive * 11f;
-                x = MathF.Tanh(x * gain) / MathF.Tanh(gain * 0.72f);
-            }
-
-            if (settings.Chorus > 0) x = ApplyChorus(x, settings.Chorus);
-            if (settings.Echo > 0) x = ApplyEcho(x, settings.Echo);
-            if (settings.Reverb > 0) x = ApplyReverb(x, settings.Reverb);
-
-            x = dry * (1f - settings.Mix) + x * settings.Mix;
-            x = MathF.Tanh(x * 1.08f) * 0.92f;
-            peak = Math.Max(peak, Math.Abs(x));
-            samples[i] = (short)Math.Clamp((int)(x * 32767f), short.MinValue, short.MaxValue);
+                Mix = mixSlider.Value / 100f,
+                PitchSemitones = pitchSlider.Value,
+                FormantSemitones = formantSlider.Value,
+                PreserveFormants = preserveToggle.Checked,
+                Quality = Math.Max(0, qualityBox.SelectedIndex),
+                Drive = driveSlider.Value / 100f,
+                Echo = echoSlider.Value / 100f,
+                Chorus = chorusSlider.Value / 100f,
+                Reverb = reverbSlider.Value / 100f,
+                GateDb = gateSlider.Value,
+                BassDb = bassSlider.Value,
+                TrebleDb = trebleSlider.Value,
+                Mode = presetBox.SelectedItem?.ToString() ?? "Clean Studio"
+            });
+            latencyLabel.Text = $"Engine latency: about {current.LatencyMilliseconds} ms";
         }
-        return peak;
-    }
-
-    private float ApplyEcho(float x, float amount)
-    {
-        int delay = (int)(sampleRate * (0.13 + amount * 0.27));
-        int read = (echoPos - delay + echoBuffer.Length) % echoBuffer.Length;
-        float delayed = echoBuffer[read];
-        echoBuffer[echoPos] = x + delayed * (0.18f + amount * 0.46f);
-        echoPos = (echoPos + 1) % echoBuffer.Length;
-        return x + delayed * amount * 0.55f;
-    }
-
-    private float ApplyReverb(float x, float amount)
-    {
-        float a = reverbA[revAPos];
-        float b = reverbB[revBPos];
-        reverbA[revAPos] = x + a * 0.73f;
-        reverbB[revBPos] = x + b * 0.69f + a * 0.12f;
-        revAPos = (revAPos + 1) % reverbA.Length;
-        revBPos = (revBPos + 1) % reverbB.Length;
-        return x + (a + b) * amount * 0.24f;
-    }
-
-    private float ApplyChorus(float x, float amount)
-    {
-        chorusBuffer[chorusPos] = x;
-        lfoPhase += 2 * Math.PI * 0.34 / sampleRate;
-        if (lfoPhase > 2 * Math.PI) lfoPhase -= 2 * Math.PI;
-        double delay = sampleRate * (0.012 + 0.006 * Math.Sin(lfoPhase));
-        double rp = chorusPos - delay;
-        while (rp < 0) rp += chorusBuffer.Length;
-        int i0 = (int)rp;
-        int i1 = (i0 + 1) % chorusBuffer.Length;
-        float frac = (float)(rp - i0);
-        float delayed = chorusBuffer[i0] * (1 - frac) + chorusBuffer[i1] * frac;
-        chorusPos = (chorusPos + 1) % chorusBuffer.Length;
-        return x + delayed * amount * 0.48f;
-    }
-
-    private float PitchShift(float x, float ratio)
-    {
-        pitchBuffer[pitchWrite] = x;
-        int size = pitchBuffer.Length;
-        pitchRead += ratio;
-        while (pitchRead >= size) pitchRead -= size;
-        int distance = (pitchWrite - (int)pitchRead + size) % size;
-        if (distance < sampleRate * 0.01 || distance > size - sampleRate * 0.01)
-            pitchRead = (pitchWrite - size / 2 + size) % size;
-        int i0 = (int)pitchRead;
-        int i1 = (i0 + 1) % size;
-        float frac = (float)(pitchRead - i0);
-        float y = pitchBuffer[i0] * (1 - frac) + pitchBuffer[i1] * frac;
-        pitchWrite = (pitchWrite + 1) % size;
-        return y;
+        catch (Exception ex)
+        {
+            statusLabel.Text = "Could not update effect: " + ex.Message;
+        }
     }
 }
