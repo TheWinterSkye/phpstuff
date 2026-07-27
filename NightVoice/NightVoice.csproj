@@ -10,8 +10,17 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishTrimmed>false</PublishTrimmed>
     <AssemblyName>NightVoice</AssemblyName>
+    <Version>2.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="native\bin\NightPitch.dll">
+      <Link>NightPitch.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
   </ItemGroup>
 </Project>
