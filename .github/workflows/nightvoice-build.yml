@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fetch pinned Signalsmith Stretch
+        id: fetch_stretch
         shell: pwsh
         run: |
           git clone --recurse-submodules https://github.com/Signalsmith-Audio/signalsmith-stretch.git NightVoice/native/signalsmith-stretch
@@ -33,6 +34,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build native pitch engine
+        id: native_build
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force NightVoice/native/bin | Out-Null
@@ -44,12 +46,15 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
+        id: restore
         run: dotnet restore NightVoice/NightVoice.csproj
 
       - name: Publish self-contained app
+        id: publish
         run: dotnet publish NightVoice/NightVoice.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o NightVoice/publish
 
       - name: Add licenses and instructions
+        id: instructions
         shell: pwsh
         run: |
           Copy-Item NightVoice/native/signalsmith-stretch/LICENSE.txt NightVoice/publish/LICENSE-Signalsmith-Stretch.txt
@@ -82,6 +87,7 @@ jobs:
           '@ | Set-Content -Path NightVoice/publish/README.txt
 
       - name: Verify package contents
+        id: verify
         shell: pwsh
         run: |
           Get-ChildItem NightVoice/publish
@@ -89,16 +95,19 @@ jobs:
           if (!(Test-Path NightVoice/publish/NightPitch.dll)) { throw "NightPitch.dll is missing." }
 
       - name: Package ZIP
+        id: package
         shell: pwsh
         run: Compress-Archive -Path NightVoice/publish/* -DestinationPath NightVoice-Windows-x64.zip -Force
 
       - uses: actions/upload-artifact@v4
+        id: artifact
         with:
           name: NightVoice-Windows-x64
           path: NightVoice-Windows-x64.zip
           if-no-files-found: error
 
       - name: Publish upgraded portable download
+        id: release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -107,17 +116,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Host "No previous release to remove." }
           gh release create nightvoice-latest NightVoice-Windows-x64.zip --title "NightVoice 2 - Natural Pitch Engine" --notes "Upgraded portable Windows x64 build with Signalsmith Stretch pitch processing, independent formant control, three quality modes, retuned natural presets, and smoother gating. Extract the full ZIP and run NightVoice.exe. Keep NightPitch.dll beside it."
 
-      - name: Record successful build
+      - name: Record build result
+        if: always()
         shell: pwsh
         run: |
           @"
           source_commit=${{ github.sha }}
-          result=success
-          package=NightVoice-Windows-x64.zip
-          release_tag=nightvoice-latest
-          "@ | Set-Content NightVoice/BUILD_SUCCESS.txt
+          job_status=${{ job.status }}
+          fetch_stretch=${{ steps.fetch_stretch.outcome }}
+          native_build=${{ steps.native_build.outcome }}
+          restore=${{ steps.restore.outcome }}
+          publish=${{ steps.publish.outcome }}
+          instructions=${{ steps.instructions.outcome }}
+          verify=${{ steps.verify.outcome }}
+          package=${{ steps.package.outcome }}
+          artifact=${{ steps.artifact.outcome }}
+          release=${{ steps.release.outcome }}
+          "@ | Set-Content NightVoice/BUILD_RESULT.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add NightVoice/BUILD_SUCCESS.txt
-          git commit -m "Record successful NightVoice build [skip ci]"
+          git add NightVoice/BUILD_RESULT.txt
+          git commit -m "Record NightVoice build result [skip ci]"
           git push
