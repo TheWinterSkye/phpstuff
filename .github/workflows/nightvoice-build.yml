@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: nightvoice-windows-build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest
@@ -102,3 +106,18 @@ jobs:
           gh release delete nightvoice-latest --cleanup-tag --yes 2>$null
           if ($LASTEXITCODE -ne 0) { Write-Host "No previous release to remove." }
           gh release create nightvoice-latest NightVoice-Windows-x64.zip --title "NightVoice 2 - Natural Pitch Engine" --notes "Upgraded portable Windows x64 build with Signalsmith Stretch pitch processing, independent formant control, three quality modes, retuned natural presets, and smoother gating. Extract the full ZIP and run NightVoice.exe. Keep NightPitch.dll beside it."
+
+      - name: Record successful build
+        shell: pwsh
+        run: |
+          @"
+          source_commit=${{ github.sha }}
+          result=success
+          package=NightVoice-Windows-x64.zip
+          release_tag=nightvoice-latest
+          "@ | Set-Content NightVoice/BUILD_SUCCESS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add NightVoice/BUILD_SUCCESS.txt
+          git commit -m "Record successful NightVoice build [skip ci]"
+          git push
