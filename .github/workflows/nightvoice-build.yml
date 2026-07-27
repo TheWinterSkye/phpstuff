@@ -16,46 +16,89 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch pinned Signalsmith Stretch
+        shell: pwsh
+        run: |
+          git clone --recurse-submodules https://github.com/Signalsmith-Audio/signalsmith-stretch.git NightVoice/native/signalsmith-stretch
+          Push-Location NightVoice/native/signalsmith-stretch
+          git checkout 57b93f4e9206a089a45387eaa39bdc9f310d3308
+          git submodule update --init --recursive
+          Pop-Location
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build native pitch engine
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force NightVoice/native/bin | Out-Null
+          cl /nologo /O2 /std:c++17 /EHsc /LD /I"NightVoice\native\signalsmith-stretch" "NightVoice\native\NightPitch.cpp" /link /OUT:"NightVoice\native\bin\NightPitch.dll"
+          if (!(Test-Path NightVoice/native/bin/NightPitch.dll)) { throw "NightPitch.dll was not produced." }
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
       - name: Restore
         run: dotnet restore NightVoice/NightVoice.csproj
-      - name: Publish self-contained EXE
+
+      - name: Publish self-contained app
         run: dotnet publish NightVoice/NightVoice.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o NightVoice/publish
-      - name: Add instructions
+
+      - name: Add licenses and instructions
         shell: pwsh
         run: |
+          Copy-Item NightVoice/native/signalsmith-stretch/LICENSE.txt NightVoice/publish/LICENSE-Signalsmith-Stretch.txt
           @'
-          NIGHTVOICE - QUICK START
+          NIGHTVOICE 2 - QUICK START
 
-          1. Install a virtual audio cable such as VB-CABLE if you do not already have one.
-          2. Run NightVoice.exe.
-          3. Choose your physical microphone under Microphone input.
-          4. Choose CABLE Input (or another virtual playback cable) as Virtual microphone output.
-          5. In Discord/game voice settings, choose CABLE Output as the microphone.
-          6. Choose your headphones under Headphone monitor output.
-          7. Turn on Monitor my processed voice only when wearing headphones.
-          8. Pick a preset, press START VOICE MOD, and adjust the sliders.
+          1. Extract the entire ZIP. NightVoice.exe and NightPitch.dll must remain together.
+          2. Install a virtual audio cable such as VB-CABLE if you do not already have one.
+          3. Run NightVoice.exe.
+          4. Choose your physical microphone under Microphone input.
+          5. Choose CABLE Input as Virtual microphone output.
+          6. In Discord or your game, choose CABLE Output as the microphone.
+          7. Choose your headphones under Headphone monitor output.
+          8. Enable Monitor my processed voice while wearing headphones.
+          9. Start with Balanced quality. Studio is smoother but has more delay.
+          10. For natural voices, keep pitch and formant changes modest.
+
+          WHAT CHANGED IN VERSION 2
+          - Replaced the prototype circular-buffer pitch effect with Signalsmith Stretch.
+          - Added independent formant shifting and formant preservation.
+          - Added Low Latency, Balanced, and Studio processing modes.
+          - Retuned natural presets without chorus or distortion masking.
+          - Added a smoother expander-style noise gate.
+          - Aligned dry/wet audio to prevent hollow comb-filter sound.
 
           IMPORTANT
           - This portable app does not install its own virtual audio driver.
           - Use headphones while monitoring to prevent feedback.
           - Windows SmartScreen may warn because this free build is not code-signed.
           '@ | Set-Content -Path NightVoice/publish/README.txt
+
+      - name: Verify package contents
+        shell: pwsh
+        run: |
+          Get-ChildItem NightVoice/publish
+          if (!(Test-Path NightVoice/publish/NightVoice.exe)) { throw "NightVoice.exe is missing." }
+          if (!(Test-Path NightVoice/publish/NightPitch.dll)) { throw "NightPitch.dll is missing." }
+
       - name: Package ZIP
         shell: pwsh
         run: Compress-Archive -Path NightVoice/publish/* -DestinationPath NightVoice-Windows-x64.zip -Force
+
       - uses: actions/upload-artifact@v4
         with:
           name: NightVoice-Windows-x64
           path: NightVoice-Windows-x64.zip
           if-no-files-found: error
-      - name: Publish portable download
+
+      - name: Publish upgraded portable download
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete nightvoice-latest --cleanup-tag --yes 2>$null
           if ($LASTEXITCODE -ne 0) { Write-Host "No previous release to remove." }
-          gh release create nightvoice-latest NightVoice-Windows-x64.zip --title "NightVoice Portable Windows" --notes "Portable Windows x64 build. Extract the ZIP and run NightVoice.exe. Requires a virtual audio cable for use as a microphone in Discord or games."
+          gh release create nightvoice-latest NightVoice-Windows-x64.zip --title "NightVoice 2 - Natural Pitch Engine" --notes "Upgraded portable Windows x64 build with Signalsmith Stretch pitch processing, independent formant control, three quality modes, retuned natural presets, and smoother gating. Extract the full ZIP and run NightVoice.exe. Keep NightPitch.dll beside it."
