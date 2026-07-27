@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include "signalsmith-stretch.h"
+#include <signalsmith-stretch/signalsmith-stretch.h>
 
 #if defined(_WIN32)
 #define NV_EXPORT extern "C" __declspec(dllexport)
@@ -18,7 +18,6 @@ struct PitchState {
     signalsmith::stretch::SignalsmithStretch<float> stretch;
 
     explicit PitchState(int rate, int quality) : sampleRate(rate) {
-        // Voice-oriented configurations. Larger windows are smoother but add latency.
         switch (quality) {
             case 0: stretch.configure(1, 2048, 512, false); break;
             case 2: stretch.configure(1, 4096, 1024, true); break;
