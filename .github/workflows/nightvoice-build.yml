@@ -1,0 +1,50 @@
+name: Build NightVoice Windows
+
+on:
+  push:
+    branches: [ nightvoice-build ]
+    paths:
+      - 'NightVoice/**'
+      - '.github/workflows/nightvoice-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore NightVoice/NightVoice.csproj
+      - name: Publish self-contained EXE
+        run: dotnet publish NightVoice/NightVoice.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o NightVoice/publish
+      - name: Add instructions
+        shell: pwsh
+        run: |
+          @'
+          NIGHTVOICE - QUICK START
+
+          1. Install a virtual audio cable such as VB-CABLE if you do not already have one.
+          2. Run NightVoice.exe.
+          3. Choose your physical microphone under Microphone input.
+          4. Choose CABLE Input (or another virtual playback cable) as Virtual microphone output.
+          5. In Discord/game voice settings, choose CABLE Output as the microphone.
+          6. Choose your headphones under Headphone monitor output.
+          7. Turn on Monitor my processed voice only when wearing headphones.
+          8. Pick a preset, press START VOICE MOD, and adjust the sliders.
+
+          IMPORTANT
+          - This portable app does not install its own virtual audio driver.
+          - Use headphones while monitoring to prevent feedback.
+          - Windows SmartScreen may warn because this free build is not code-signed.
+          '@ | Set-Content -Path NightVoice/publish/README.txt
+      - name: Package ZIP
+        shell: pwsh
+        run: Compress-Archive -Path NightVoice/publish/* -DestinationPath NightVoice-Windows-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NightVoice-Windows-x64
+          path: NightVoice-Windows-x64.zip
+          if-no-files-found: error
