@@ -54,21 +54,21 @@ internal sealed class NativePitch : IDisposable
         if (handle != IntPtr.Zero) NvPitchDestroy(handle);
     }
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr NvPitchCreate(int sampleRate, int quality);
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void NvPitchDestroy(IntPtr handle);
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_reset", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern void NvPitchReset(IntPtr handle);
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_configure", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern int NvPitchConfigure(IntPtr handle, float pitchSemitones, float formantSemitones, int preserveFormants, float formantBaseHz);
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_process", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern int NvPitchProcess(IntPtr handle, [In] float[] input, [Out] float[] output, int sampleCount);
 
-    [DllImport("NightPitch.dll", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("NightPitch.dll", EntryPoint = "nv_pitch_latency", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     private static extern int NvPitchLatency(IntPtr handle);
 }
