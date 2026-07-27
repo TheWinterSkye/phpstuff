@@ -8,6 +8,9 @@ on:
       - '.github/workflows/nightvoice-build.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -48,3 +51,11 @@ jobs:
           name: NightVoice-Windows-x64
           path: NightVoice-Windows-x64.zip
           if-no-files-found: error
+      - name: Publish portable download
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete nightvoice-latest --cleanup-tag --yes 2>$null
+          if ($LASTEXITCODE -ne 0) { Write-Host "No previous release to remove." }
+          gh release create nightvoice-latest NightVoice-Windows-x64.zip --title "NightVoice Portable Windows" --notes "Portable Windows x64 build. Extract the ZIP and run NightVoice.exe. Requires a virtual audio cable for use as a microphone in Discord or games."
