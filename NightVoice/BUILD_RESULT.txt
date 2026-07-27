@@ -1,0 +1,11 @@
+source_commit=e4f054e2da3dea19fea751407b0d50f5aef2402a
+job_status=failure
+fetch_stretch=success
+native_build=failure
+restore=skipped
+publish=skipped
+instructions=skipped
+verify=skipped
+package=skipped
+artifact=skipped
+release=skipped
