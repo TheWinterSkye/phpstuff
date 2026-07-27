@@ -32,7 +32,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force NightVoice/native/bin | Out-Null
-          cl /nologo /O2 /std:c++17 /EHsc /LD /I"NightVoice\native\signalsmith-stretch" "NightVoice\native\NightPitch.cpp" /link /OUT:"NightVoice\native\bin\NightPitch.dll"
+          cl /nologo /O2 /MT /std:c++17 /EHsc /LD /I"NightVoice\native\signalsmith-stretch" "NightVoice\native\NightPitch.cpp" /link /OUT:"NightVoice\native\bin\NightPitch.dll"
           if (!(Test-Path NightVoice/native/bin/NightPitch.dll)) { throw "NightPitch.dll was not produced." }
 
       - uses: actions/setup-dotnet@v4
