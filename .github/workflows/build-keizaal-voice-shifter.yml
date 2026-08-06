@@ -1,0 +1,57 @@
+name: Build Keizaal Voice Shifter
+
+on:
+  pull_request:
+    paths:
+      - 'keizaal-voice-shifter/**'
+      - '.github/workflows/build-keizaal-voice-shifter.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Check out miniaudio 0.11.25
+        uses: actions/checkout@v4
+        with:
+          repository: mackron/miniaudio
+          ref: 9634bedb5b5a2ca38c1ee7108a9358a4e233f14d
+          path: third_party/miniaudio
+
+      - name: Check out Signalsmith Stretch
+        uses: actions/checkout@v4
+        with:
+          repository: Signalsmith-Audio/signalsmith-stretch
+          ref: 57b93f4e9206a089a45387eaa39bdc9f310d3308
+          path: third_party/signalsmith-stretch
+          submodules: recursive
+
+      - name: Configure
+        shell: pwsh
+        run: >-
+          cmake -S keizaal-voice-shifter -B build -A x64
+          -DMINIAUDIO_DIR="$env:GITHUB_WORKSPACE/third_party/miniaudio"
+          -DSIGNALSMITH_DIR="$env:GITHUB_WORKSPACE/third_party/signalsmith-stretch"
+
+      - name: Build release
+        run: cmake --build build --config Release --parallel
+
+      - name: Verify single executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'build/Release/KeizaalVoiceShifter.exe'
+          if (!(Test-Path $exe)) { throw 'KeizaalVoiceShifter.exe was not produced.' }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item $exe dist/KeizaalVoiceShifter.exe
+          Get-Item dist/KeizaalVoiceShifter.exe | Format-List Name,Length,LastWriteTime
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeizaalVoiceShifter-Windows-x64
+          path: dist/KeizaalVoiceShifter.exe
+          if-no-files-found: error
+          compression-level: 0
