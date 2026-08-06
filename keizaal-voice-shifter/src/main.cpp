@@ -1,3 +1,6 @@
+#include <fstream>
+#include <sstream>
+
 #include "common.inc"
 #include "audio.inc"
 #include "ui.inc"
