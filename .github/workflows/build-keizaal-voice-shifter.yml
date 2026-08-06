@@ -1,6 +1,12 @@
 name: Build Keizaal Voice Shifter
 
 on:
+  push:
+    branches:
+      - 'build/keizaal-voice-shifter-v1'
+    paths:
+      - 'keizaal-voice-shifter/**'
+      - '.github/workflows/build-keizaal-voice-shifter.yml'
   pull_request:
     paths:
       - 'keizaal-voice-shifter/**'
@@ -71,7 +77,9 @@ jobs:
           compression-level: 0
 
       - name: Publish ZIP directly in repository
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: >-
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/build/keizaal-voice-shifter-v1')
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path downloads | Out-Null
@@ -83,5 +91,6 @@ jobs:
             Write-Host "Published ZIP is already current."
           } else {
             git commit -m "Publish Keizaal Voice Shifter Windows download"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            git push origin HEAD:${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
           }
+
