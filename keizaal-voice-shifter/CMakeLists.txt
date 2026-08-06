@@ -55,6 +55,7 @@ target_link_libraries(KeizaalVoiceShifter PRIVATE
     uxtheme
     dwmapi
     shlwapi
+    shell32
 )
 
 set_target_properties(KeizaalVoiceShifter PROPERTIES
