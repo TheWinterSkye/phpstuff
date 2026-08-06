@@ -21,13 +21,19 @@ jobs:
           ref: 9634bedb5b5a2ca38c1ee7108a9358a4e233f14d
           path: third_party/miniaudio
 
-      - name: Check out Signalsmith Stretch
+      - name: Check out Signalsmith Stretch 1.3.2
         uses: actions/checkout@v4
         with:
           repository: Signalsmith-Audio/signalsmith-stretch
           ref: 57b93f4e9206a089a45387eaa39bdc9f310d3308
           path: third_party/signalsmith-stretch
-          submodules: recursive
+
+      - name: Check out Signalsmith Linear 0.3.1
+        uses: actions/checkout@v4
+        with:
+          repository: Signalsmith-Audio/linear
+          ref: 0.3.1
+          path: third_party/signalsmith-stretch/signalsmith-linear
 
       - name: Configure
         shell: pwsh
