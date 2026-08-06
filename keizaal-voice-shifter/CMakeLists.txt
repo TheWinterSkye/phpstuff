@@ -43,7 +43,7 @@ target_compile_definitions(KeizaalVoiceShifter PRIVATE
 
 if(MSVC)
     target_compile_options(KeizaalVoiceShifter PRIVATE /O2 /GL /EHsc /permissive- /W4 /wd4100 /wd4244 /wd4267)
-    target_link_options(KeizaalVoiceShifter PRIVATE /LTCG /OPT:REF /OPT:ICF)
+    target_link_options(KeizaalVoiceShifter PRIVATE /LTCG /OPT:REF /OPT:ICF /MANIFEST:NO)
 endif()
 
 target_link_libraries(KeizaalVoiceShifter PRIVATE
