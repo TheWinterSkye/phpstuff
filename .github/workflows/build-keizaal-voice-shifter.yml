@@ -7,12 +7,18 @@ on:
       - '.github/workflows/build-keizaal-voice-shifter.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   windows-x64:
     runs-on: windows-latest
     steps:
-      - name: Check out project
+      - name: Check out project branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
 
       - name: Check out miniaudio 0.11.25
         uses: actions/checkout@v4
@@ -45,14 +51,15 @@ jobs:
       - name: Build release
         run: cmake --build build --config Release --parallel
 
-      - name: Verify single executable
+      - name: Package single executable
         shell: pwsh
         run: |
           $exe = Join-Path $env:GITHUB_WORKSPACE 'build/Release/KeizaalVoiceShifter.exe'
           if (!(Test-Path $exe)) { throw 'KeizaalVoiceShifter.exe was not produced.' }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $exe dist/KeizaalVoiceShifter.exe
-          Get-Item dist/KeizaalVoiceShifter.exe | Format-List Name,Length,LastWriteTime
+          Compress-Archive -Path dist/KeizaalVoiceShifter.exe -DestinationPath dist/KeizaalVoiceShifter-Windows-x64.zip -Force
+          Get-Item dist/KeizaalVoiceShifter.exe, dist/KeizaalVoiceShifter-Windows-x64.zip | Format-List Name,Length,LastWriteTime
 
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
@@ -61,3 +68,19 @@ jobs:
           path: dist/KeizaalVoiceShifter.exe
           if-no-files-found: error
           compression-level: 0
+
+      - name: Publish ZIP directly in repository
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path downloads | Out-Null
+          Copy-Item dist/KeizaalVoiceShifter-Windows-x64.zip downloads/KeizaalVoiceShifter-Windows-x64.zip -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/KeizaalVoiceShifter-Windows-x64.zip
+          if (git diff --cached --quiet) {
+            Write-Host "Published ZIP is already current."
+          } else {
+            git commit -m "Publish Keizaal Voice Shifter Windows download"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          }
