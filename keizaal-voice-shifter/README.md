@@ -12,6 +12,7 @@ A native Windows real-time voice pitch and formant shifter for Skyrim roleplay.
 - Offers a separate toggleable headphone monitor output.
 - Saves one custom preset in `%APPDATA%\KeizaalVoiceShifter\custom.ini`.
 - Builds as one self-contained native `KeizaalVoiceShifter.exe` with no .NET or Python installation required.
+- Targets 48 kHz shared-mode WASAPI for compatibility with the user's existing VB-Audio cable setup.
 
 ## Correct VB-CABLE routing
 
